@@ -1,3 +1,8 @@
+## 1.0.1
+
+* Added documentation comments to all public classes and members
+* Internal refactoring: converted internal-use classes to private (no API changes)
+
 ## 1.0.0
 
 * Initial release of tagged_field
