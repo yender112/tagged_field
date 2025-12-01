@@ -4,7 +4,6 @@ version: 1.0.0
 homepage: https://github.com/yender112/tagged_field
 repository: https://github.com/yender112/tagged_field
 issue_tracker: https://github.com/yender112/tagged_field/issues
-publish_to: none
 
 topics:
   - textfield
