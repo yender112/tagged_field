@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+/// Full visual customization for [TaggedField], organized in four sub-styles:
+/// field container, text appearance, tag chips, and autocomplete dropdown.
 class TaggedFieldStyle {
   final FieldStyle field;
   final TextStyleConfig text;
@@ -14,6 +16,7 @@ class TaggedFieldStyle {
   });
 }
 
+/// Container appearance: borders, border radius, background color, and compact mode.
 class FieldStyle {
   final Border border;
   final Border focusedBorder;
@@ -34,6 +37,7 @@ class FieldStyle {
   });
 }
 
+/// Text and cursor appearance configuration.
 class TextStyleConfig {
   final Color? cursorColor;
   final double cursorWidth;
@@ -48,6 +52,8 @@ class TextStyleConfig {
   });
 }
 
+/// Chip rendering: background opacity, border, radius, padding, and color inheritance
+/// for key, operator, and value segments.
 class TagStyle {
   final Color defaultColor;
   final int opacity;
@@ -76,6 +82,7 @@ class TagStyle {
   });
 }
 
+/// Autocomplete dropdown dimensions and item styling.
 class AutocompleteStyle {
   final double width;
   final double maxHeight;

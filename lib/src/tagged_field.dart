@@ -6,15 +6,27 @@ import 'models/behavior.dart';
 import 'models/models.dart';
 import 'models/style.dart';
 
-import 'utils/key_model.dart';
-import 'utils/segments_types.dart';
-
+/// A Flutter TextField with inline tag recognition, autocomplete suggestions,
+/// and real-time chip visualization for `key=value` syntax.
 class TaggedField extends StatefulWidget {
+  /// Keys the field will recognize and render as chips.
   final List<FieldKey> recognizedKeys;
+
+  /// Called when the user submits (Enter key). Provides:
+  /// - `query`: free text (excludes tags if [TaggedFieldBehavior.excludeTagsFromSubmitQuery] is true)
+  /// - `parts`: parsed segments including recognized key-value tags
   final Function(String query, List<FieldPart> parts)? onSubmitted;
+
+  /// Visual customization: field borders, text style, tag chips, and autocomplete dropdown.
   final TaggedFieldStyle style;
+
+  /// Controls duplicate keys handling and submit output separation.
   final TaggedFieldBehavior behavior;
+
+  /// Optional external focus node for programmatic focus control.
   final FocusNode? focusNode;
+
+  /// If true, field retains focus after submission; otherwise unfocuses.
   final bool keepFocusedOnSubmit;
 
   const TaggedField({
@@ -28,10 +40,10 @@ class TaggedField extends StatefulWidget {
   });
 
   @override
-  State<TaggedField> createState() => TaggedFieldState();
+  State<TaggedField> createState() => _TaggedFieldState();
 }
 
-class TaggedFieldState extends State<TaggedField> {
+class _TaggedFieldState extends State<TaggedField> {
   late FocusNode _focusNode;
   final TextEditingController _controller = TextEditingController();
   final LayerLink _layerLink = LayerLink();
@@ -39,7 +51,7 @@ class TaggedFieldState extends State<TaggedField> {
   final ScrollController _autocompleteScrollController = ScrollController();
   OverlayEntry? _autocompleteMenu;
 
-  List<FieldSegment> _segments = [TextSegment('')];
+  List<_FieldSegment> _segments = [_TextSegment('')];
   List<FieldPart> _parts = [];
   String _text = "";
 
@@ -48,7 +60,7 @@ class TaggedFieldState extends State<TaggedField> {
   static const double _denseHeigth = 40;
   static const double _defaultFontSize = 14;
 
-  List<Suggestion> _filteredSuggestions = [];
+  List<_Suggestion> _filteredSuggestions = [];
   String _previusText = "";
   bool _isSelecting = false;
   int _selectedIndex = -1;
@@ -70,7 +82,7 @@ class TaggedFieldState extends State<TaggedField> {
     _focusNode.dispose();
     _textScrollController.dispose();
     _autocompleteScrollController.dispose();
-    hideAutocomplete();
+    _hideAutocomplete();
     super.dispose();
   }
 
@@ -111,7 +123,7 @@ class TaggedFieldState extends State<TaggedField> {
               return NotificationListener<ScrollNotification>(
                 onNotification: (notification) {
                   if (notification is UserScrollNotification) {
-                    hideAutocomplete();
+                    _hideAutocomplete();
                   }
                   return false;
                 },
@@ -131,7 +143,7 @@ class TaggedFieldState extends State<TaggedField> {
                               controller: _controller,
                               focusNode: _focusNode,
                               selectAllOnFocus: false,
-                              style: getTextStyle(color: Colors.transparent),
+                              style: _getTextStyle(color: Colors.transparent),
                               cursorColor: widget.style.text.cursorColor,
                               cursorWidth: widget.style.text.cursorWidth,
                               textAlignVertical: isDense
@@ -139,7 +151,7 @@ class TaggedFieldState extends State<TaggedField> {
                                   : TextAlignVertical.top,
                               onSubmitted: (value) {
                                 widget.onSubmitted!(_text, _parts);
-                                hideAutocomplete();
+                                _hideAutocomplete();
                               },
                               decoration: InputDecoration(
                                 isDense: isDense,
@@ -169,7 +181,7 @@ class TaggedFieldState extends State<TaggedField> {
                               child: IgnorePointer(
                                 child: Row(
                                   spacing: 0.0,
-                                  children: buildOverlayWidgets(),
+                                  children: _buildOverlayWidgets(),
                                 ),
                               ),
                             ),
@@ -194,8 +206,8 @@ class TaggedFieldState extends State<TaggedField> {
     final extent = _controller.selection.extentOffset;
     final recognizedKeys = widget.recognizedKeys;
 
-    handleTextChange(text, previus, base);
-    handleAutocomplete(text, base, extent, recognizedKeys);
+    _handleTextChange(text, previus, base);
+    _handleAutocomplete(text, base, extent, recognizedKeys);
 
     setState(() {
       _baseOffset = base;
@@ -205,12 +217,12 @@ class TaggedFieldState extends State<TaggedField> {
 
   void _onFocusChanged() {
     if (_focusNode.hasFocus) {
-      showAutocomplete(true);
+      _showAutocomplete(true);
     } else {
       if (!_isSelecting) {
         Future.delayed(const Duration(milliseconds: 100), () {
           if (!_isSelecting && mounted) {
-            hideAutocomplete();
+            _hideAutocomplete();
           }
         });
       }
@@ -225,8 +237,8 @@ class TaggedFieldState extends State<TaggedField> {
     if (event.logicalKey == LogicalKeyboardKey.space &&
         event is KeyDownEvent &&
         HardwareKeyboard.instance.isControlPressed) {
-      showAutocomplete(true);
-      scrollToCaret();
+      _showAutocomplete(true);
+      _scrollToCaret();
       return KeyEventResult.handled;
     }
 
@@ -234,12 +246,12 @@ class TaggedFieldState extends State<TaggedField> {
       if (_autocompleteMenu != null &&
           _selectedIndex >= 0 &&
           _selectedIndex < _filteredSuggestions.length) {
-        selectSuggestion(_filteredSuggestions[_selectedIndex], false);
+        _selectSuggestion(_filteredSuggestions[_selectedIndex], false);
         return KeyEventResult.handled;
       } else if (widget.onSubmitted != null) {
         widget.onSubmitted!(_text, _parts);
         if (widget.keepFocusedOnSubmit) {
-          hideAutocomplete();
+          _hideAutocomplete();
           return KeyEventResult.handled;
         }
       }
@@ -251,25 +263,25 @@ class TaggedFieldState extends State<TaggedField> {
     if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
       setState(() {
         _selectedIndex = (_selectedIndex + 1) % _filteredSuggestions.length;
-        updateAutocomplete(false);
+        _updateAutocomplete(false);
       });
       _autocompleteMenu?.markNeedsBuild();
-      scrollToSelected();
+      _scrollToSelected();
       return KeyEventResult.handled;
     } else if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
       setState(() {
         _selectedIndex = _selectedIndex <= 0
             ? _filteredSuggestions.length - 1
             : _selectedIndex - 1;
-        updateAutocomplete(false);
+        _updateAutocomplete(false);
       });
       _autocompleteMenu?.markNeedsBuild();
-      scrollToSelected();
+      _scrollToSelected();
       return KeyEventResult.handled;
     } else if (event.logicalKey == LogicalKeyboardKey.escape &&
         event is KeyDownEvent) {
       if (_autocompleteMenu != null) {
-        hideAutocomplete();
+        _hideAutocomplete();
         setState(() {
           _filteredSuggestions = [];
         });
@@ -282,22 +294,15 @@ class TaggedFieldState extends State<TaggedField> {
     return KeyEventResult.ignored;
   }
 
-  double getPaddingHorizontal() {
-    return getCommonPadding();
+  double _getPaddingHorizontal() {
+    return _getCommonPadding();
   }
 
-  double getPaddingVertical(bool isOverlay) {
-    if (isOverlay && widget.style.field.isDense) {
-      return _denseHeigth / 4;
-    }
-    return getCommonPadding();
-  }
-
-  double getCommonPadding() {
+  double _getCommonPadding() {
     return (widget.style.field.isDense ? 8 : 12);
   }
 
-  void iterateWords(
+  void _iterateWords(
     String text,
     List<FieldKey> recognizedKeys,
     String operator, {
@@ -306,7 +311,7 @@ class TaggedFieldState extends State<TaggedField> {
       String word,
       int wordStartIndex,
       int wordEndIndex,
-      KeyMatch? match,
+      _KeyMatch? match,
     )?
     onOperatorWord,
     void Function(String word, int wordStartIndex, int wordEndIndex)?
@@ -326,7 +331,7 @@ class TaggedFieldState extends State<TaggedField> {
       if (word.isEmpty && onEmptyWord != null) {
         onEmptyWord(wordStartIndex, wordEndIndex);
       } else if (word.contains(operator) && onOperatorWord != null) {
-        final match = splitByOperator(
+        final match = _splitByOperator(
           word,
           wordStartIndex,
           wordEndIndex,
@@ -342,15 +347,15 @@ class TaggedFieldState extends State<TaggedField> {
     }
   }
 
-  WordIndex getCaretWord(
+  _WordIndex _getCaretWord(
     String text,
     int base,
     int extent,
     List<FieldKey> recognizedKeys,
   ) {
     if (base != extent) {
-      return WordIndex(
-        type: WordType.unknown,
+      return _WordIndex(
+        type: _WordType.unknown,
         word: '',
         startIndex: -1,
         endIndex: -1,
@@ -358,8 +363,8 @@ class TaggedFieldState extends State<TaggedField> {
     }
 
     if (text.isEmpty) {
-      return WordIndex(
-        type: WordType.blank,
+      return _WordIndex(
+        type: _WordType.blank,
         word: '',
         startIndex: 0,
         endIndex: 0,
@@ -367,9 +372,9 @@ class TaggedFieldState extends State<TaggedField> {
     }
 
     final caret = base;
-    WordIndex? result;
+    _WordIndex? result;
 
-    iterateWords(
+    _iterateWords(
       text,
       recognizedKeys,
       "=",
@@ -377,8 +382,8 @@ class TaggedFieldState extends State<TaggedField> {
         if (result == null &&
             caret >= wordStartIndex &&
             caret <= wordEndIndex) {
-          result = WordIndex(
-            type: WordType.blank,
+          result = _WordIndex(
+            type: _WordType.blank,
             word: '',
             startIndex: wordStartIndex,
             endIndex: wordEndIndex,
@@ -389,8 +394,8 @@ class TaggedFieldState extends State<TaggedField> {
         if (result == null && caret == wordEndIndex && match != null) {
           final startIndex = wordStartIndex + match.valueStart;
           final endIndex = startIndex + (match.value?.length ?? 0);
-          result = WordIndex(
-            type: WordType.valueOfKey,
+          result = _WordIndex(
+            type: _WordType.valueOfKey,
             word: match.value ?? "",
             startIndex: startIndex,
             endIndex: endIndex,
@@ -400,8 +405,8 @@ class TaggedFieldState extends State<TaggedField> {
       },
       onPartialWord: (word, wordStartIndex, wordEndIndex) {
         if (result == null && caret == wordEndIndex) {
-          result = WordIndex(
-            type: WordType.partialWord,
+          result = _WordIndex(
+            type: _WordType.partialWord,
             word: word,
             startIndex: wordStartIndex,
             endIndex: wordEndIndex,
@@ -411,22 +416,22 @@ class TaggedFieldState extends State<TaggedField> {
     );
 
     return result ??
-        WordIndex(
-          type: WordType.unknown,
+        _WordIndex(
+          type: _WordType.unknown,
           word: '',
           startIndex: -1,
           endIndex: -1,
         );
   }
 
-  List<KeyMatch> findKeyMatches(String text, List<FieldKey> recognizedKeys) {
+  List<_KeyMatch> _findKeyMatches(String text, List<FieldKey> recognizedKeys) {
     if (text.isEmpty) return [];
 
-    final matches = <KeyMatch>[];
+    final matches = <_KeyMatch>[];
     List<FieldPart> parts = [];
     _text = "";
 
-    iterateWords(
+    _iterateWords(
       text,
       recognizedKeys,
       "=",
@@ -468,7 +473,7 @@ class TaggedFieldState extends State<TaggedField> {
     return matches;
   }
 
-  KeyMatch? splitByOperator(
+  _KeyMatch? _splitByOperator(
     String word,
     int wordStartIndex,
     int wordEndIndex,
@@ -488,7 +493,7 @@ class TaggedFieldState extends State<TaggedField> {
       return null;
     }
 
-    final keyMatch = KeyMatch(
+    final keyMatch = _KeyMatch(
       start: wordStartIndex,
       end: wordEndIndex,
       key: fieldKey,
@@ -499,7 +504,7 @@ class TaggedFieldState extends State<TaggedField> {
     return keyMatch;
   }
 
-  void handleTextChange(String text, String previus, int base) {
+  void _handleTextChange(String text, String previus, int base) {
     if (previus == text && text.isNotEmpty) {
       return;
     }
@@ -507,7 +512,7 @@ class TaggedFieldState extends State<TaggedField> {
 
     _text = text;
     _parts = [FieldPart(type: SegmentType.text, text: text)];
-    parseText(text);
+    _parseText(text);
 
     Future.delayed(Duration.zero, () {
       if (_controller.text.length >= base) {
@@ -518,40 +523,40 @@ class TaggedFieldState extends State<TaggedField> {
     });
   }
 
-  void parseText(String text) {
-    final matches = findKeyMatches(text, widget.recognizedKeys);
+  void _parseText(String text) {
+    final matches = _findKeyMatches(text, widget.recognizedKeys);
 
     if (matches.isEmpty) {
       setState(() {
-        _segments = [TextSegment(text)];
+        _segments = [_TextSegment(text)];
       });
       return;
     }
 
-    List<FieldSegment> newSegments = [];
+    List<_FieldSegment> newSegments = [];
     int lastEnd = 0;
 
     for (var match in matches) {
       if (match.start > lastEnd) {
         final beforeText = text.substring(lastEnd, match.start);
         if (beforeText.isNotEmpty) {
-          newSegments.add(TextSegment(beforeText));
+          newSegments.add(_TextSegment(beforeText));
         }
       }
 
-      newSegments.add(ChipSegment(key: match));
+      newSegments.add(_ChipSegment(key: match));
       lastEnd = match.end;
     }
 
     if (lastEnd < text.length) {
       final afterText = text.substring(lastEnd);
-      newSegments.add(TextSegment(afterText));
+      newSegments.add(_TextSegment(afterText));
     }
 
     if (newSegments.isEmpty ||
-        newSegments.last is! TextSegment ||
-        (newSegments.last as TextSegment).text.isNotEmpty) {
-      newSegments.add(TextSegment(''));
+        newSegments.last is! _TextSegment ||
+        (newSegments.last as _TextSegment).text.isNotEmpty) {
+      newSegments.add(_TextSegment(''));
     }
 
     setState(() {
@@ -559,7 +564,7 @@ class TaggedFieldState extends State<TaggedField> {
     });
   }
 
-  void handleAutocomplete(
+  void _handleAutocomplete(
     String text,
     int base,
     int extent,
@@ -569,21 +574,21 @@ class TaggedFieldState extends State<TaggedField> {
       return;
     }
 
-    final caretWord = getCaretWord(text, base, extent, recognizedKeys);
-    if (caretWord.type == WordType.unknown) {
-      hideAutocomplete();
+    final caretWord = _getCaretWord(text, base, extent, recognizedKeys);
+    if (caretWord.type == _WordType.unknown) {
+      _hideAutocomplete();
       return;
     }
 
-    updateSuggestions(caretWord, recognizedKeys);
+    _updateSuggestions(caretWord, recognizedKeys);
   }
 
-  void updateSuggestions(WordIndex caretWord, List<FieldKey> recognizedKeys) {
+  void _updateSuggestions(_WordIndex caretWord, List<FieldKey> recognizedKeys) {
     final word = caretWord.word;
-    final removeExactMatch = caretWord.type == WordType.valueOfKey;
+    final removeExactMatch = caretWord.type == _WordType.valueOfKey;
 
-    final suggestions = getSuggestions(recognizedKeys, caretWord);
-    final filtered = getFilteredSuggestions(
+    final suggestions = _getSuggestions(recognizedKeys, caretWord);
+    final filtered = _getFilteredSuggestions(
       word,
       suggestions,
       removeExactMatch,
@@ -594,12 +599,12 @@ class TaggedFieldState extends State<TaggedField> {
       _selectedIndex = -1;
     });
 
-    updateAutocomplete(true);
+    _updateAutocomplete(true);
   }
 
-  List<Suggestion> getFilteredSuggestions(
+  List<_Suggestion> _getFilteredSuggestions(
     String word,
-    List<Suggestion> suggestions,
+    List<_Suggestion> suggestions,
     bool removeExactMatch,
   ) {
     if (word.isEmpty) {
@@ -617,28 +622,28 @@ class TaggedFieldState extends State<TaggedField> {
         .toList();
   }
 
-  List<Suggestion> getSuggestions(
+  List<_Suggestion> _getSuggestions(
     List<FieldKey> recognizedKeys,
-    WordIndex caretWord,
+    _WordIndex caretWord,
   ) {
-    if (caretWord.type == WordType.blank) {
-      return getKeySuggestions(recognizedKeys, caretWord);
+    if (caretWord.type == _WordType.blank) {
+      return _getKeySuggestions(recognizedKeys, caretWord);
     }
 
-    if (caretWord.type == WordType.partialWord) {
-      return getKeySuggestions(recognizedKeys, caretWord);
+    if (caretWord.type == _WordType.partialWord) {
+      return _getKeySuggestions(recognizedKeys, caretWord);
     }
 
-    if (caretWord.type == WordType.valueOfKey) {
-      return getKeyValueSuggestions(caretWord.key, caretWord);
+    if (caretWord.type == _WordType.valueOfKey) {
+      return _getKeyValueSuggestions(caretWord.key, caretWord);
     }
 
     return [];
   }
 
-  List<Suggestion> getKeySuggestions(
+  List<_Suggestion> _getKeySuggestions(
     List<FieldKey> recognizedKeys,
-    WordIndex caretWord,
+    _WordIndex caretWord,
   ) {
     final keys = widget.behavior.allowDuplicatedKeys
         ? recognizedKeys
@@ -648,39 +653,39 @@ class TaggedFieldState extends State<TaggedField> {
             ),
           );
     return keys
-        .map((k) => Suggestion(word: k.key, wordOrigin: caretWord))
+        .map((k) => _Suggestion(word: k.key, wordOrigin: caretWord))
         .toList();
   }
 
-  List<Suggestion> getKeyValueSuggestions(
-    KeyMatch? match,
-    WordIndex caretWord,
+  List<_Suggestion> _getKeyValueSuggestions(
+    _KeyMatch? match,
+    _WordIndex caretWord,
   ) {
     if (match == null) {
       return [];
     }
 
     return (match.key.suggestions ?? [])
-        .map((k) => Suggestion(word: k, wordOrigin: caretWord))
+        .map((k) => _Suggestion(word: k, wordOrigin: caretWord))
         .toList();
   }
 
-  void updateAutocomplete(bool isNew) {
+  void _updateAutocomplete(bool isNew) {
     if (_focusNode.hasFocus) {
       if (_filteredSuggestions.isEmpty) {
-        hideAutocomplete();
+        _hideAutocomplete();
       } else {
-        showAutocomplete(isNew);
+        _showAutocomplete(isNew);
       }
     }
   }
 
-  void hideAutocomplete() {
+  void _hideAutocomplete() {
     _autocompleteMenu?.remove();
     _autocompleteMenu = null;
   }
 
-  void showAutocomplete(bool isNew) {
+  void _showAutocomplete(bool isNew) {
     if (_filteredSuggestions.isEmpty) return;
 
     if (isNew) {
@@ -698,13 +703,13 @@ class TaggedFieldState extends State<TaggedField> {
       _selectedIndex = -1;
     }
 
-    _autocompleteMenu = createAutocompleteMenu();
+    _autocompleteMenu = _createAutocompleteMenu();
     Overlay.of(context).insert(_autocompleteMenu!);
   }
 
-  void calculateNewText(
+  void _calculateNewText(
     String text,
-    Suggestion suggestion,
+    _Suggestion suggestion,
     void Function(String newText, int newCursorPosition) onFinish,
   ) {
     final finalIndex = text.length;
@@ -713,17 +718,17 @@ class TaggedFieldState extends State<TaggedField> {
 
     var startIndex = suggestion.wordOrigin.startIndex;
     var endIndex = switch (previousType) {
-      WordType.blank => startIndex,
-      WordType.unknown => 0,
-      WordType.partialWord => suggestion.wordOrigin.endIndex,
-      WordType.valueOfKey => suggestion.wordOrigin.endIndex,
+      _WordType.blank => startIndex,
+      _WordType.unknown => 0,
+      _WordType.partialWord => suggestion.wordOrigin.endIndex,
+      _WordType.valueOfKey => suggestion.wordOrigin.endIndex,
     };
 
     var endChar = switch (previousType) {
-      WordType.blank => "=",
-      WordType.unknown => "",
-      WordType.partialWord => "=",
-      WordType.valueOfKey => (startIndex == finalIndex ? " " : ""),
+      _WordType.blank => "=",
+      _WordType.unknown => "",
+      _WordType.partialWord => "=",
+      _WordType.valueOfKey => (startIndex == finalIndex ? " " : ""),
     };
 
     final beforeText = startIndex >= 0 ? text.substring(0, startIndex) : text;
@@ -737,11 +742,11 @@ class TaggedFieldState extends State<TaggedField> {
     onFinish(finalText, newCursorPosition);
   }
 
-  void selectSuggestion(Suggestion suggestion, bool isMouse) {
+  void _selectSuggestion(_Suggestion suggestion, bool isMouse) {
     _isSelecting = true;
 
     final text = _controller.text;
-    calculateNewText(text, suggestion, (newText, newCursorPosition) {
+    _calculateNewText(text, suggestion, (newText, newCursorPosition) {
       _isSelecting = false;
       _filteredSuggestions = [];
       _controller.value = TextEditingValue(
@@ -751,13 +756,13 @@ class TaggedFieldState extends State<TaggedField> {
         ),
       );
       Future.delayed(const Duration(milliseconds: 10), () {
-        scrollToCaret();
+        _scrollToCaret();
       });
     });
   }
 
-  void scrollToCaret() {
-    final caretX = getCaretPositionX() + (getPaddingHorizontal() * 2);
+  void _scrollToCaret() {
+    final caretX = _getCaretPositionX() + (_getPaddingHorizontal() * 2);
     if (_textScrollController.position.maxScrollExtent > 0 &&
         caretX >
             _textScrollController.offset +
@@ -775,7 +780,7 @@ class TaggedFieldState extends State<TaggedField> {
     }
   }
 
-  TextStyle getTextStyle({Color? color}) {
+  TextStyle _getTextStyle({Color? color}) {
     return widget.style.text.baseTextStyle.copyWith(
       color: color,
       fontSize: widget.style.text.baseTextStyle.fontSize ?? _defaultFontSize,
@@ -784,7 +789,7 @@ class TaggedFieldState extends State<TaggedField> {
     );
   }
 
-  TextStyle getTextTemplate() {
+  TextStyle _getTextTemplate() {
     return widget.style.text.baseTextStyle.copyWith(
       fontSize: widget.style.text.baseTextStyle.fontSize ?? _defaultFontSize,
       height: 1.4,
@@ -792,7 +797,7 @@ class TaggedFieldState extends State<TaggedField> {
     );
   }
 
-  Widget buildChip(int index, ChipSegment chip) {
+  Widget _buildChip(int index, _ChipSegment chip) {
     final color = chip.key.key.color ?? widget.style.tag.defaultColor;
 
     int selStart = _baseOffset < _extentOffset ? _baseOffset : _extentOffset;
@@ -832,7 +837,7 @@ class TaggedFieldState extends State<TaggedField> {
           children: [
             Text(
               chip.key.key.key,
-              style: getTextStyle(
+              style: _getTextStyle(
                 color: widget.style.tag.useColorForKey
                     ? color
                     : widget.style.text.textColor,
@@ -840,7 +845,7 @@ class TaggedFieldState extends State<TaggedField> {
             ),
             Text(
               chip.key.operator,
-              style: getTextStyle(
+              style: _getTextStyle(
                 color: widget.style.tag.useColorForOperator
                     ? color
                     : widget.style.text.textColor,
@@ -848,7 +853,7 @@ class TaggedFieldState extends State<TaggedField> {
             ),
             Text(
               chip.key.value ?? '',
-              style: getTextStyle(
+              style: _getTextStyle(
                 color: widget.style.tag.useColorForValue
                     ? color
                     : widget.style.text.textColor,
@@ -860,18 +865,18 @@ class TaggedFieldState extends State<TaggedField> {
     );
   }
 
-  Widget buildTextDisplay(int index, TextSegment segment) {
+  Widget _buildTextDisplay(int index, _TextSegment segment) {
     return Text(
       segment.text.isEmpty && index == 0 ? '' : segment.text,
-      style: getTextStyle(color: widget.style.text.textColor),
+      style: _getTextStyle(color: widget.style.text.textColor),
     );
   }
 
-  double getCaretPositionX() {
+  double _getCaretPositionX() {
     final textPainter = TextPainter(
       text: TextSpan(
         text: _controller.text.substring(0, _controller.selection.baseOffset),
-        style: getTextTemplate(),
+        style: _getTextTemplate(),
       ),
       textDirection: TextDirection.ltr,
     )..layout();
@@ -879,20 +884,20 @@ class TaggedFieldState extends State<TaggedField> {
     return textPainter.width;
   }
 
-  double getAutocompletePositionX() {
+  double _getAutocompletePositionX() {
     double scrollOffset = _textScrollController.offset;
-    final caretX = getCaretPositionX();
-    final autocompleteX = (caretX + getPaddingHorizontal()) - scrollOffset;
+    final caretX = _getCaretPositionX();
+    final autocompleteX = (caretX + _getPaddingHorizontal()) - scrollOffset;
     return autocompleteX;
   }
 
-  OverlayEntry createAutocompleteMenu() {
+  OverlayEntry _createAutocompleteMenu() {
     RenderBox renderBox = context.findRenderObject() as RenderBox;
     var size = renderBox.size;
 
     return OverlayEntry(
       builder: (context) {
-        double caretX = getAutocompletePositionX();
+        double caretX = _getAutocompletePositionX();
         final double width = widget.style.autocomplete.width;
         final double availableWidth = size.width - caretX;
         if (availableWidth < width) {
@@ -939,7 +944,7 @@ class TaggedFieldState extends State<TaggedField> {
                       cursor: SystemMouseCursors.click,
                       child: GestureDetector(
                         onTap: () {
-                          selectSuggestion(suggestion, true);
+                          _selectSuggestion(suggestion, true);
                         },
                         child: Container(
                           height: widget.style.autocomplete.itemHeight,
@@ -949,7 +954,10 @@ class TaggedFieldState extends State<TaggedField> {
                           padding: widget.style.autocomplete.itemPadding,
                           child: Align(
                             alignment: Alignment.centerLeft,
-                            child: Text(suggestion.word, style: getTextStyle()),
+                            child: Text(
+                              suggestion.word,
+                              style: _getTextStyle(),
+                            ),
                           ),
                         ),
                       ),
@@ -964,7 +972,7 @@ class TaggedFieldState extends State<TaggedField> {
     );
   }
 
-  void scrollToSelected() {
+  void _scrollToSelected() {
     if (_selectedIndex < 0 || _filteredSuggestions.isEmpty) return;
     if (!_autocompleteScrollController.hasClients) return;
 
@@ -991,20 +999,100 @@ class TaggedFieldState extends State<TaggedField> {
     });
   }
 
-  List<Widget> buildOverlayWidgets() {
+  List<Widget> _buildOverlayWidgets() {
     List<Widget> widgets = [];
 
     for (int i = 0; i < _segments.length; i++) {
-      if (_segments[i] is ChipSegment) {
-        widgets.add(buildChip(i, _segments[i] as ChipSegment));
+      if (_segments[i] is _ChipSegment) {
+        widgets.add(_buildChip(i, _segments[i] as _ChipSegment));
       } else {
-        final textSegment = _segments[i] as TextSegment;
+        final textSegment = _segments[i] as _TextSegment;
         if (textSegment.text.isNotEmpty || _segments.length == 1) {
-          widgets.add(buildTextDisplay(i, textSegment));
+          widgets.add(_buildTextDisplay(i, textSegment));
         }
       }
     }
 
     return widgets;
   }
+}
+
+class _KeyMatch {
+  final int start;
+  final int end;
+  final FieldKey key;
+  final String operator;
+  final int valueStart;
+  final String? value;
+
+  String get text {
+    return "${key.key}$operator$value";
+  }
+
+  _KeyMatch({
+    required this.start,
+    required this.end,
+    required this.key,
+    required this.operator,
+    required this.valueStart,
+    this.value,
+  });
+}
+
+class _Suggestion {
+  String word;
+  _WordIndex wordOrigin;
+
+  _Suggestion({required this.word, required this.wordOrigin});
+}
+
+class _WordIndex {
+  _WordType type;
+  String word;
+  int startIndex;
+  int endIndex;
+  _KeyMatch? key;
+
+  _WordIndex({
+    required this.type,
+    required this.word,
+    required this.startIndex,
+    required this.endIndex,
+    this.key,
+  });
+}
+
+enum _WordType {
+  unknown, // No tag and no value of any tag
+  blank, // Blank space, viable to add a tag
+  partialWord,
+  valueOfKey, // Value of a existing tag
+}
+
+abstract class _FieldSegment {
+  int get length;
+  String toText();
+}
+
+class _TextSegment extends _FieldSegment {
+  String text;
+  _TextSegment(this.text);
+
+  @override
+  int get length => text.length;
+
+  @override
+  String toText() => text;
+}
+
+class _ChipSegment extends _FieldSegment {
+  _KeyMatch key;
+
+  _ChipSegment({required this.key});
+
+  @override
+  int get length => toText().length;
+
+  @override
+  String toText() => '${key.key}${key.operator}${key.value}';
 }
