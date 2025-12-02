@@ -8,7 +8,7 @@ A Flutter TextField with inline tag recognition, autocomplete suggestions, and r
 
 ## 🌐 Demo
 
-Try the web demo: <a href="https://tagged.datadev.app/" target="_blank">tagged.datadev.app</a>
+Try the web demo: [tagged.datadev.app](https://tagged.datadev.app/)
 
 ## 📦 Install
 
