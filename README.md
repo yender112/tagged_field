@@ -1,4 +1,6 @@
-<img src="https://i.imgur.com/zUq77ky.png" width="242">
+<p align="center">
+  <img src="https://i.imgur.com/k2Pv5xI.png" width="587">
+</p>
 
 # TaggedField
 
