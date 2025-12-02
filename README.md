@@ -1,8 +1,14 @@
-<img src="https://i.imgur.com/zUq77ky.png" width="242">
+<p align="center">
+  <img src="https://i.imgur.com/k2Pv5xI.png" width="587">
+</p>
 
 # TaggedField
 
 A Flutter TextField with inline tag recognition, autocomplete suggestions, and real-time chip visualization. Ideal for building advanced search filters with `key=value` syntax.
+
+## 🌐 Demo
+
+Try the web demo: [tagged.datadev.app](https://tagged.datadev.app/)
 
 ## 📦 Install
 
