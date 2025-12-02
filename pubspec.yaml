@@ -1,6 +1,6 @@
 name: tagged_field
 description: "Flutter TextField with tag autocomplete and chip visualization"
-version: 1.0.2
+version: 1.0.3
 homepage: https://github.com/yender112/tagged_field
 repository: https://github.com/yender112/tagged_field
 issue_tracker: https://github.com/yender112/tagged_field/issues
@@ -16,8 +16,9 @@ topics:
 platforms:
   android:
   ios:
-  web:
   macos:
+  linux:
+  windows:
 
 environment:
   sdk: ^3.10.0

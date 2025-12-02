@@ -1,3 +1,8 @@
+## 1.0.3
+
+* Temporarily disabled web support due to focus handling issues
+* Added Windows, macOS, and Linux support
+
 ## 1.0.2
 
 * Add example app and refine readme.md

@@ -6,10 +6,6 @@
 
 A Flutter TextField with inline tag recognition, autocomplete suggestions, and real-time chip visualization. Ideal for building advanced search filters with `key=value` syntax.
 
-## 🌐 Demo
-
-Try the web demo: [tagged.datadev.app](https://tagged.datadev.app/)
-
 ## 📦 Install
 
 ```bash
