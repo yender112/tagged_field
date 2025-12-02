@@ -1,3 +1,7 @@
+## 1.0.2
+
+* Add example app and refine readme.md
+
 ## 1.0.1
 
 * Added documentation comments to all public classes and members
